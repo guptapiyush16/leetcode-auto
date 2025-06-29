@@ -5,18 +5,25 @@ from datetime import datetime
 import smtplib
 from email.message import EmailMessage
 
-# Fetch LeetCode cookie values from environment
+# Load environment variables
 LEETCODE_SESSION = os.environ["LEETCODE_SESSION"]
 CSRF_TOKEN = os.environ["CSRF_TOKEN"]
 EMAIL_USER = os.environ["EMAIL_USER"]
 EMAIL_PASS = os.environ["EMAIL_PASS"]
 TO_EMAIL = os.environ["TO_EMAIL"]
 
-SCHEDULE_TIME = "2025-06-29 18:30:00"
-QUESTION_TITLE_SLUG = "two-sum"
-LANGUAGE = "cpp"
+# Submission schedule in UTC (11:30 PM IST = 18:00 UTC)
+SCHEDULE_TIMES = [
+    "2025-06-30 18:00:00",  # First submission
+    "2025-07-01 18:00:00"   # Second submission
+]
 
-CODE = """
+# LeetCode questions and their solutions
+SUBMISSIONS = [
+    {
+        "slug": "two-sum",
+        "language": "cpp",
+        "code": """
 class Solution {
 public:
     vector<int> twoSum(vector<int>& nums, int target) {
@@ -31,13 +38,32 @@ public:
     }
 };
 """
-
-headers = {
-    "User-Agent": "Mozilla/5.0",
-    "referer": f"https://leetcode.com/problems/{QUESTION_TITLE_SLUG}/",
-    "x-csrftoken": CSRF_TOKEN,
-    "cookie": f"LEETCODE_SESSION={LEETCODE_SESSION}; csrftoken={CSRF_TOKEN}",
-}
+    },
+    {
+        "slug": "valid-parentheses",
+        "language": "cpp",
+        "code": """
+class Solution {
+public:
+    bool isValid(string s) {
+        stack<char> st;
+        for(char c : s){
+            if(c == '(' || c == '[' || c == '{'){
+                st.push(c);
+            } else {
+                if(st.empty()) return false;
+                if(c == ')' && st.top() != '(') return false;
+                if(c == ']' && st.top() != '[') return false;
+                if(c == '}' && st.top() != '{') return false;
+                st.pop();
+            }
+        }
+        return st.empty();
+    }
+};
+"""
+    }
+]
 
 def get_question_id(slug):
     url = "https://leetcode.com/graphql"
@@ -51,50 +77,63 @@ def get_question_id(slug):
         """,
         "variables": {"titleSlug": slug}
     }
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "referer": f"https://leetcode.com/problems/{slug}/",
+        "x-csrftoken": CSRF_TOKEN,
+        "cookie": f"LEETCODE_SESSION={LEETCODE_SESSION}; csrftoken={CSRF_TOKEN}",
+    }
     r = requests.post(url, json=query, headers=headers)
     return r.json()["data"]["question"]["questionId"]
 
-def send_email(success):
+def send_email(success, slug):
     msg = EmailMessage()
-    msg['Subject'] = '✅ LeetCode Auto Submission Status'
+    msg['Subject'] = f"✅ LeetCode Auto Submission Status: {slug}"
     msg['From'] = EMAIL_USER
     msg['To'] = TO_EMAIL
     if success:
-        msg.set_content("🎉 Your LeetCode problem was submitted successfully!")
+        msg.set_content(f"🎉 Your LeetCode problem '{slug}' was submitted successfully!")
     else:
-        msg.set_content("❌ Submission failed. Check your cookies or setup.")
-    
+        msg.set_content(f"❌ Submission failed for '{slug}'. Check your cookies or setup.")
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(EMAIL_USER, EMAIL_PASS)
         smtp.send_message(msg)
 
-def submit_solution():
+def submit_solution(slug, code, language):
     try:
-        question_id = get_question_id(QUESTION_TITLE_SLUG)
-        submit_url = f"https://leetcode.com/problems/{QUESTION_TITLE_SLUG}/submit/"
-        payload = {
-            "lang": LANGUAGE,
-            "question_id": str(question_id),
-            "typed_code": CODE
+        question_id = get_question_id(slug)
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "referer": f"https://leetcode.com/problems/{slug}/",
+            "x-csrftoken": CSRF_TOKEN,
+            "cookie": f"LEETCODE_SESSION={LEETCODE_SESSION}; csrftoken={CSRF_TOKEN}",
         }
-
-        res = requests.post(submit_url, json=payload, headers=headers)
+        payload = {
+            "lang": language,
+            "question_id": str(question_id),
+            "typed_code": code
+        }
+        res = requests.post(f"https://leetcode.com/problems/{slug}/submit/", json=payload, headers=headers)
         if res.status_code == 200:
-            print("✅ Submission successful!")
-            send_email(True)
+            print(f"✅ Submission successful for: {slug}")
+            send_email(True, slug)
         else:
-            print("❌ Submission failed!")
-            print(res.text)
-            send_email(False)
+            print(f"❌ Submission failed for: {slug}")
+            send_email(False, slug)
     except Exception as e:
         print("🚨 Exception:", e)
-        send_email(False)
+        send_email(False, slug)
 
-def wait_until(schedule_str):
-    submit_time = datetime.strptime(schedule_str, "%Y-%m-%d %H:%M:%S")
-    while datetime.utcnow() < submit_time:
-        print("⏳ Waiting... now:", datetime.utcnow())
-        time.sleep(10)
-    submit_solution()
+def wait_until(schedule_time_str):
+    target_time = datetime.strptime(schedule_time_str, "%Y-%m-%d %H:%M:%S")
+    while datetime.utcnow() < target_time:
+        print("⏳ Waiting... UTC now:", datetime.utcnow())
+        time.sleep(15)
 
-wait_until(SCHEDULE_TIME)
+def run_scheduler():
+    for i in range(len(SCHEDULE_TIMES)):
+        wait_until(SCHEDULE_TIMES[i])
+        submit_solution(SUBMISSIONS[i]["slug"], SUBMISSIONS[i]["code"], SUBMISSIONS[i]["language"])
+
+if __name__ == "__main__":
+    run_scheduler()
