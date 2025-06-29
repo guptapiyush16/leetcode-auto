@@ -17,7 +17,7 @@ LEETCODE_SESSION = os.environ["LEETCODE_SESSION"]
 CSRF_TOKEN = os.environ["CSRF_TOKEN"]
 
 # UTC time for submission (6:00 AM UTC = 11:30 AM IST)
-SCHEDULE_TIME = "2025-06-30 06:00:00"
+SCHEDULE_TIME = "2025-06-29 18:00:00"
 
 # LeetCode problem slug and language
 QUESTION_TITLE_SLUG = "two-sum"
