@@ -5,20 +5,18 @@ from datetime import datetime
 import smtplib
 from email.message import EmailMessage
 
-# Load environment variables
 LEETCODE_SESSION = os.environ["LEETCODE_SESSION"]
 CSRF_TOKEN = os.environ["CSRF_TOKEN"]
 EMAIL_USER = os.environ["EMAIL_USER"]
 EMAIL_PASS = os.environ["EMAIL_PASS"]
 TO_EMAIL = os.environ["TO_EMAIL"]
 
-# Submission schedule in UTC (11:30 PM IST = 18:00 UTC)
+#TODO: Change time 
 SCHEDULE_TIMES = [
-    "2025-06-30 18:00:00",  # First submission
-    "2025-07-01 18:00:00"   # Second submission
+    "2025-06-30 18:00:00",
+    "2025-07-01 18:00:00"
 ]
 
-# LeetCode questions and their solutions
 SUBMISSIONS = [
     {
         "slug": "two-sum",
